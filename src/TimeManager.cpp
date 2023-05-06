@@ -15,20 +15,33 @@ void TimeManager::Initialization()
 void TimeManager::UpdateTime()
 {
     timeClient.update();
-    TimeManager::day = daysOfTheWeek[timeClient.getDay()];
-    TimeManager::hours = timeClient.getHours();
-    TimeManager::minutes = timeClient.getMinutes();
-    TimeManager::seconds = timeClient.getSeconds();
+    TimeManager::currentTime.day = daysOfTheWeek[timeClient.getDay()];
+    TimeManager::currentTime.hours = timeClient.getHours();
+    TimeManager::currentTime.minutes = timeClient.getMinutes();
+    TimeManager::currentTime.seconds = timeClient.getSeconds();
 }
+
+void TimeManager::ShowDateAndTime(clockTime timeToShow)
+{
+    Serial.print(timeToShow.day);
+    Serial.print(", ");
+    Serial.print(timeToShow.hours);
+    Serial.print(":");
+    Serial.print(timeToShow.minutes);
+    Serial.print(":");
+    Serial.println(timeToShow.seconds);
+    Serial.println("Current time: ");
+}
+
 void TimeManager::ShowDateAndTime()
 {
-    Serial.print(TimeManager::day);
+    Serial.print(TimeManager::currentTime.day);
     Serial.print(", ");
-    Serial.print(TimeManager::hours);
+    Serial.print(TimeManager::currentTime.hours);
     Serial.print(":");
-    Serial.print(TimeManager::minutes);
+    Serial.print(TimeManager::currentTime.minutes);
     Serial.print(":");
-    Serial.println(TimeManager::seconds);
+    Serial.println(TimeManager::currentTime.seconds);
 }
 
 TimeManager::TimeManager(long utcOffsetInSeconds)

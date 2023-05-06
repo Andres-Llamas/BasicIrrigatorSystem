@@ -1,6 +1,10 @@
 #include "Behaviors.h"
 #include <Arduino.h>
 #include "Behaviors.h"
+#include <list>
+#include "TimeManager.h"
+
+clockTime timersToActivate [5];
 
 void Behaviors::Initialization()
 {
@@ -17,15 +21,22 @@ void Behaviors::SetIrrigationActive(bool state)
         Serial.println("Irrigation was stopped");
 }
 
-void Behaviors::SetIrrigationTime()
+void Behaviors::AddIrrigatorTimer(clockTime timeToActivate, int indexToSet)
 {
-    //TODO
+    // this method adds clockTime structures which contain day, hours, minutes and seconds to the list in order to make a
+    // register of the hours the user wants the irrigator system to turn on
+    timersToActivate[indexToSet] = timeToActivate;
+    Serial.println("The following data has been stored in the clock system index " + indexToSet);
+    TimeManager::ShowDateAndTime(timeToActivate);
 }
 
-void Behaviors::SetNumberOfTimers(int number)
+clockTime Behaviors::GetClockTimeFromList(int index)
 {
-    Serial.println(number);
+    clockTime val = timersToActivate[index];
+    TimeManager::ShowDateAndTime(val);
+    return val;
 }
+
 
 Behaviors::Behaviors(int solenoidValvePin)
 {

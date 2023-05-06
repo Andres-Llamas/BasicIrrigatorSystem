@@ -54,33 +54,74 @@ void WifiServerManager::StablishMDNSDirectionsAndBeginServer()
     _server.on("/timers", [&]()
                {_server.send(200, "text/plain", "Setting timers"); 
                WifiServerManager::SetNumberOfTimersHandler(); });
+    _server.on("/get", [&]()
+               {_server.send(200, "text/plain", "Setting timers"); 
+               WifiServerManager::GetClockTimeFromListHandler(); });
 
     _server.begin();
 }
 
 void WifiServerManager::SetNumberOfTimersHandler()
 {
+    /*When the user enters "http://sisriego.local/timers", the user must write the parameters as.-
+    http://sisriego.local/timers?hour=val1&minute=val2&second=val3&index=val4
+    then this method will count how many parameters there are, then will iterate for each one, if the name matches with the
+    name of the variable from this method, then gets the value written from the user and stores it in a string, then after the
+    iteration is done, this method will convert each string to int and store then uin the "clockTime" structure in order to pass that
+    structure to the method "AddIrrigatorTimer" from "Behaviors.h"
+    */
+    String hour = "";
+    String minute = "";
+    String second = "";
+    String message = "Number of args received :";
+    String indexToSet = "";
+    clockTime userTime;
+    message += _server.args(); // Get number of parameters
+    message += "\n";           // Add a new line
 
-    String message = ""; // this is where we will store the values of the parameters;
+    for (int i = 0; i < _server.args(); i++)
+    {
 
-    if (_server.arg("numTimers") == "")
-    { // Parameter not found
-
-        message = "numTimers Argument not found";
+        message += "Arg nº" + (String)i + " -> "; // Include the current iteration value
+        message += _server.argName(i) + ":";      // Get the name of the parameter
+        message += _server.arg(i) + "\n";         // Get the value of the parameter
+        if (_server.argName(i).equals("hour"))
+            hour = _server.arg(i);
+        else if (_server.argName(i).equals("minute"))
+            minute = _server.arg(i);
+        else if (_server.argName(i).equals("second"))
+            second = _server.arg(i);
+        else if (_server.argName(i).equals("index"))
+            indexToSet = _server.arg(i);
+        else
+        {
+            message = "Error at ";
+            message += i;
+            message += " parameter index. The parameter is incorrect";
+        }
     }
+    _server.send(200, "text/plain", message); // Response to the HTTP request
+    userTime.hours = hour.toInt();
+    userTime.minutes = minute.toInt();
+    userTime.seconds = second.toInt();
+    _behaviorsObject.AddIrrigatorTimer(userTime, indexToSet.toInt());
+}
+
+void WifiServerManager::GetClockTimeFromListHandler()
+{
+    String index = "";
+    if(_server.arg("index") == "")
+        index = "Parameter not found";
     else
-    { // Parameter found        
-        message += _server.arg("numTimers"); // Gets the value of the query parameter
-    }
-
-    _server.send(404, "text / plain", "numTimers Argument = " + message); // Returns the HTTP response
-    _behaviorsObject.SetNumberOfTimers(message.toInt());
+        index = _server.arg("index");
+    int val = index.toInt();
+    _behaviorsObject.GetClockTimeFromList(val);
 }
 
 void WifiServerManager::UpdateServerCLient()
 {
     _server.handleClient();
-    MDNS.update();
+    MDNS.update();    
 }
 
 WifiServerManager::WifiServerManager(char *wifiName, char *wifiPassword, Behaviors behaviorsObject)

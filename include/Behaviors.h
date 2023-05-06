@@ -1,5 +1,6 @@
 #ifndef Behaviors_h
 #define Behaviors_h
+#include "CustomStructs.h"
 
 class Behaviors
 {
@@ -8,15 +9,19 @@ private:
 public:
     int valveRelayPin;
     void Initialization();
+
     /// @brief to initiate or stop irrigation manually
     /// @param state
     void SetIrrigationActive(bool state);
-    void SetIrrigationTime();
-    /// @brief This is to stablish how many times the irrigation system will be activated.
-    /// basically, how many "alarms"
-    /// @param numberOfTimers
-    void SetNumberOfTimers(int number);
+
+    /// @brief this method adds clockTime structures which contain day, hours, minutes and seconds to the list in order to make a 
+    /// register of the hours the user wants the irrigator system to turn on
+    /// @param timeToActivate 
+    void AddIrrigatorTimer(clockTime timeToActivate, int indexToSet);
+
+    clockTime GetClockTimeFromList(int idex);
     Behaviors(int solenoidValvePin);
+    
     Behaviors();
 };
 #endif
