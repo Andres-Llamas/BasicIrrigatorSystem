@@ -14,6 +14,7 @@ private:
     */
     void SetNumberOfTimersHandler();
     void GetClockTimeFromListHandler();
+    void SetIrrigatorWithTimerHandler();
 
 public:
     void Initialize();

@@ -1,18 +1,19 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
 #include "WifiServerManager.h"
 
 char *_wifiName;
 char *_wifiPassword;
-ESP8266WebServer _server(80);
+WebServer _server(80);
 Behaviors _behaviorsObject;
 
 void WifiServerManager::Initialize()
 {
     Serial.println("ESP starts");
     WiFi.mode(WIFI_STA);
-    Serial.println("Initiating WIFI connection with " + *_wifiName);
+    Serial.println("Try Connecting to ");
+    Serial.println(_wifiName);
     WiFi.begin(_wifiName, _wifiPassword);
 
     Serial.print("Connecting...");
@@ -28,10 +29,13 @@ void WifiServerManager::Initialize()
     Serial.print("Connected! IP-Address: ");
     Serial.println(WiFi.localIP()); // Displaying the IP Address
 
-    if (MDNS.begin("sisriego"))
+    if (MDNS.begin("riego"))
     {
         Serial.println("DNS started, available with: ");
-        Serial.println("http://sisriego.local/");
+        Serial.println("http://riego.local/");
+        Serial.print("Or\nhttp://");        
+        Serial.print(WiFi.localIP());
+        Serial.print(".local/");
     }
     else
         Serial.println("Error starting MDNS");
@@ -51,12 +55,18 @@ void WifiServerManager::StablishMDNSDirectionsAndBeginServer()
     _server.on("/stop", []()
                {_server.send(200, "text/plain", "Irrigation has stopped"); 
                _behaviorsObject.SetIrrigationActive(false); });
+    _server.on("/check", []()
+               {_server.send(200, "text/plain", "Irrigation has stopped"); 
+               _behaviorsObject.CheckIrrigationValveState(); });
     _server.on("/timers", [&]()
                {_server.send(200, "text/plain", "Setting timers"); 
                WifiServerManager::SetNumberOfTimersHandler(); });
     _server.on("/get", [&]()
-               {_server.send(200, "text/plain", "Setting timers"); 
+               {_server.send(200, "text/plain", "Getting timers"); 
                WifiServerManager::GetClockTimeFromListHandler(); });
+    _server.on("/mode", [&]()
+               {_server.send(200, "text/plain", "Setting irrigator activation mode: select 'manual' or 'timer'"); 
+               WifiServerManager::SetIrrigatorWithTimerHandler(); });
 
     _server.begin();
 }
@@ -64,18 +74,21 @@ void WifiServerManager::StablishMDNSDirectionsAndBeginServer()
 void WifiServerManager::SetNumberOfTimersHandler()
 {
     /*When the user enters "http://sisriego.local/timers", the user must write the parameters as.-
-    http://sisriego.local/timers?hour=val1&minute=val2&second=val3&index=val4
+    http://sisriego.local/timers?startHour=1&startMinute=2&stopHour=3&stopMinute=4&indexToSet=5. or whit IP address
+    http://192.168.100.23/timers?startHour=1&startMinute=2&stopHour=3&stopMinute=4&indexToSet=5
     then this method will count how many parameters there are, then will iterate for each one, if the name matches with the
     name of the variable from this method, then gets the value written from the user and stores it in a string, then after the
     iteration is done, this method will convert each string to int and store then uin the "clockTime" structure in order to pass that
     structure to the method "AddIrrigatorTimer" from "Behaviors.h"
     */
-    String hour = "";
-    String minute = "";
-    String second = "";
-    String message = "Number of args received :";
+    String startHour = "";
+    String startMinute = "";
+    String stopHour = "";
+    String stopMinute = "";
     String indexToSet = "";
-    clockTime userTime;
+    clockTime startTime;
+    clockTime stopTime;
+    String message = "Number of args received :";
     message += _server.args(); // Get number of parameters
     message += "\n";           // Add a new line
 
@@ -85,12 +98,14 @@ void WifiServerManager::SetNumberOfTimersHandler()
         message += "Arg nº" + (String)i + " -> "; // Include the current iteration value
         message += _server.argName(i) + ":";      // Get the name of the parameter
         message += _server.arg(i) + "\n";         // Get the value of the parameter
-        if (_server.argName(i).equals("hour"))
-            hour = _server.arg(i);
-        else if (_server.argName(i).equals("minute"))
-            minute = _server.arg(i);
-        else if (_server.argName(i).equals("second"))
-            second = _server.arg(i);
+        if (_server.argName(i).equals("startHour"))
+            startHour = _server.arg(i);
+        else if (_server.argName(i).equals("startMinute"))
+            startMinute = _server.arg(i);
+        else if (_server.argName(i).equals("stopHour"))
+            stopHour = _server.arg(i);
+        else if (_server.argName(i).equals("stopMinute"))
+            stopMinute = _server.arg(i);
         else if (_server.argName(i).equals("index"))
             indexToSet = _server.arg(i);
         else
@@ -101,16 +116,19 @@ void WifiServerManager::SetNumberOfTimersHandler()
         }
     }
     _server.send(200, "text/plain", message); // Response to the HTTP request
-    userTime.hours = hour.toInt();
-    userTime.minutes = minute.toInt();
-    userTime.seconds = second.toInt();
-    _behaviorsObject.AddIrrigatorTimer(userTime, indexToSet.toInt());
+    startTime.hours = startHour.toInt();
+    startTime.minutes = startMinute.toInt();
+    startTime.seconds = 0; // his is because I will use only hours and minutes to control the system
+    stopTime.hours = stopHour.toInt();
+    stopTime.minutes = stopMinute.toInt();
+    stopTime.seconds = 0;
+    _behaviorsObject.AddIrrigatorTimer(startTime, stopTime, indexToSet.toInt());
 }
 
 void WifiServerManager::GetClockTimeFromListHandler()
 {
     String index = "";
-    if(_server.arg("index") == "")
+    if (_server.arg("index") == "")
         index = "Parameter not found";
     else
         index = _server.arg("index");
@@ -118,10 +136,23 @@ void WifiServerManager::GetClockTimeFromListHandler()
     _behaviorsObject.GetClockTimeFromList(val);
 }
 
+void WifiServerManager::SetIrrigatorWithTimerHandler()
+{
+    String state = "";
+    if (_server.arg("mode") == "")
+        state = "Parameter not found";
+    else
+        state = _server.arg("mode");
+
+    if (state.equals("manual"))
+        _behaviorsObject.SetIrrigatorWithTimer(false);
+    else
+        _behaviorsObject.SetIrrigatorWithTimer(true);
+}
+
 void WifiServerManager::UpdateServerCLient()
 {
     _server.handleClient();
-    MDNS.update();    
 }
 
 WifiServerManager::WifiServerManager(char *wifiName, char *wifiPassword, Behaviors behaviorsObject)

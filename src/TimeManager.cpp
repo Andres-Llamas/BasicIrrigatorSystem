@@ -2,10 +2,12 @@
 #include <NTPClient.h>
 #include "WiFiUdp.h"
 
+clockTime TimeManager::currentTime;
 long _utcOffsetInSeconds = -21600; // The offset difference between the Time zones calculated by UTC*60*60
 char *daysOfTheWeek[7] = {"Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"};
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", _utcOffsetInSeconds);
+
 
 void TimeManager::Initialization()
 {
@@ -23,18 +25,20 @@ void TimeManager::UpdateTime()
 
 void TimeManager::ShowDateAndTime(clockTime timeToShow)
 {
+    Serial.print(" ");
     Serial.print(timeToShow.day);
-    Serial.print(", ");
-    Serial.print(timeToShow.hours);
+    Serial.print(",");
     Serial.print(":");
-    Serial.print(timeToShow.minutes);
+    Serial.print(timeToShow.hours);    
     Serial.print(":");
-    Serial.println(timeToShow.seconds);
-    Serial.println("Current time: ");
+    Serial.print(timeToShow.minutes);    
+    Serial.print(":");
+    Serial.println(timeToShow.seconds);    
 }
 
 void TimeManager::ShowDateAndTime()
 {
+    Serial.print("Current real time: ");
     Serial.print(TimeManager::currentTime.day);
     Serial.print(", ");
     Serial.print(TimeManager::currentTime.hours);
@@ -43,8 +47,7 @@ void TimeManager::ShowDateAndTime()
     Serial.print(":");
     Serial.println(TimeManager::currentTime.seconds);
 }
-
-TimeManager::TimeManager(long utcOffsetInSeconds)
+TimeManager::TimeManager()
 {
-    _utcOffsetInSeconds = utcOffsetInSeconds;
+
 }
