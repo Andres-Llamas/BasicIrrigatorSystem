@@ -2,29 +2,41 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include "WifiServerManager.h"
+#include "Sensors.h"
 
 char *_wifiName;
 char *_wifiPassword;
 WebServer _server(80);
 Behaviors _behaviorsObject;
 
+void handle_root();
+void SetNumberOfTimersHandler();
+void GetClockTimeFromListHandler();
+void SetIrrigatorWithTimerHandler();
+void CheckIrrigationValveStateHandler();
+
 void WifiServerManager::Initialize()
 {
     Serial.println("ESP starts");
-    WiFi.mode(WIFI_STA);
-    Serial.println("Try Connecting to ");
     Serial.println(_wifiName);
+
+    // Connect to your wi-fi modem
     WiFi.begin(_wifiName, _wifiPassword);
 
-    Serial.print("Connecting...");
-
+    // Check wi-fi is connected to wi-fi network
     while (WiFi.status() != WL_CONNECTED)
-    { // Loop which makes a point every 500ms until the connection process has finished
-
-        delay(500);
+    {
+        delay(1000);
         Serial.print(".");
     }
-    Serial.println();
+    Serial.println("");
+    Serial.println("WiFi connected successfully");
+    Serial.print("Got IP: ");
+    Serial.println(WiFi.localIP()); // Show ESP32 IP on serial
+
+    WifiServerManager::StablishMDNSDirectionsAndBeginServer();
+    Serial.println("HTTP server started");
+    delay(100);
 
     Serial.print("Connected! IP-Address: ");
     Serial.println(WiFi.localIP()); // Displaying the IP Address
@@ -33,7 +45,7 @@ void WifiServerManager::Initialize()
     {
         Serial.println("DNS started, available with: ");
         Serial.println("http://riego.local/");
-        Serial.print("Or\nhttp://");        
+        Serial.print("Or\nhttp://");
         Serial.print(WiFi.localIP());
         Serial.print(".local/");
     }
@@ -46,8 +58,7 @@ void WifiServerManager::StablishMDNSDirectionsAndBeginServer()
     _server.onNotFound([]()
                        { _server.send(404, "text/plain", "Link was not found!"); });
 
-    _server.on("/", []()
-               { _server.send(200, "text/plain", "Welcome motherfucker!!!"); });
+    _server.on("/", handle_root);
 
     _server.on("/start", []()
                {_server.send(200, "text/plain", "Irrigation has started"); 
@@ -55,23 +66,16 @@ void WifiServerManager::StablishMDNSDirectionsAndBeginServer()
     _server.on("/stop", []()
                {_server.send(200, "text/plain", "Irrigation has stopped"); 
                _behaviorsObject.SetIrrigationActive(false); });
-    _server.on("/check", []()
-               {_server.send(200, "text/plain", "Irrigation has stopped"); 
-               _behaviorsObject.CheckIrrigationValveState(); });
-    _server.on("/timers", [&]()
-               {_server.send(200, "text/plain", "Setting timers"); 
-               WifiServerManager::SetNumberOfTimersHandler(); });
-    _server.on("/get", [&]()
-               {_server.send(200, "text/plain", "Getting timers"); 
-               WifiServerManager::GetClockTimeFromListHandler(); });
-    _server.on("/mode", [&]()
-               {_server.send(200, "text/plain", "Setting irrigator activation mode: select 'manual' or 'timer'"); 
-               WifiServerManager::SetIrrigatorWithTimerHandler(); });
+
+    _server.on("/check", CheckIrrigationValveStateHandler);
+    _server.on("/timers", SetNumberOfTimersHandler);
+    _server.on("/get", GetClockTimeFromListHandler);
+    _server.on("/mode", SetIrrigatorWithTimerHandler);
 
     _server.begin();
 }
 
-void WifiServerManager::SetNumberOfTimersHandler()
+void SetNumberOfTimersHandler()
 {
     /*When the user enters "http://sisriego.local/timers", the user must write the parameters as.-
     http://sisriego.local/timers?startHour=1&startMinute=2&stopHour=3&stopMinute=4&indexToSet=5. or whit IP address
@@ -125,7 +129,7 @@ void WifiServerManager::SetNumberOfTimersHandler()
     _behaviorsObject.AddIrrigatorTimer(startTime, stopTime, indexToSet.toInt());
 }
 
-void WifiServerManager::GetClockTimeFromListHandler()
+void GetClockTimeFromListHandler()
 {
     String index = "";
     if (_server.arg("index") == "")
@@ -136,7 +140,7 @@ void WifiServerManager::GetClockTimeFromListHandler()
     _behaviorsObject.GetClockTimeFromList(val);
 }
 
-void WifiServerManager::SetIrrigatorWithTimerHandler()
+void SetIrrigatorWithTimerHandler()
 {
     String state = "";
     if (_server.arg("mode") == "")
@@ -150,9 +154,51 @@ void WifiServerManager::SetIrrigatorWithTimerHandler()
         _behaviorsObject.SetIrrigatorWithTimer(true);
 }
 
+void CheckIrrigationValveStateHandler()
+{
+    _behaviorsObject.CheckIrrigationValveState();
+    String message = _behaviorsObject.valveState;
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <body>";
+    HTML += "       <h1><center>" + message + "</center></h1>";    
+    HTML += "   </body>";
+    HTML += "</html>";
+    _server.send(200, "text/html", HTML);
+}
+
 void WifiServerManager::UpdateServerCLient()
 {
     _server.handleClient();
+}
+
+// Handle root url (/)
+void handle_root()
+{
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <head>";
+    HTML += "       <title>ESP Input Form</title>";
+    HTML += "       <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+    HTML += "   </head>";
+    HTML += "   <body>";
+    HTML += "       <h1><center> Irrigator system </center></h1>";
+    HTML += "       <a href=\"http://192.168.100.52/start\"><center>Start Irrigation</center></a>";
+    HTML += "       <a href=\"http://192.168.100.52/stop\"><center>Stop Irrigation</center></a>";
+    HTML += "       <a href=\"http://192.168.100.52/check\"><center>Check if valve is active</center></a>";
+    HTML += "   <form action=\"/get\">";
+    HTML += "       input1: <input type=\"text\" name=\"input1\">";
+    HTML += "       <input type=\"submit\" value=\"Submit\">";
+    HTML += "   </form><br>";
+    HTML += "   </body>";
+    HTML += "</html>";
+
+    
+
+    Serial.println("entered the login page");
+    _server.send(200, "text/html", HTML);
 }
 
 WifiServerManager::WifiServerManager(char *wifiName, char *wifiPassword, Behaviors behaviorsObject)

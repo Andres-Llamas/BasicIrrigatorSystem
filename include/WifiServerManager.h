@@ -12,9 +12,6 @@ private:
     iteration is done, this method will convert each string to int and store then uin the "clockTime" structure in order to pass that 
     structure to the method "AddIrrigatorTimer" from "Behaviors.h"
     */
-    void SetNumberOfTimersHandler();
-    void GetClockTimeFromListHandler();
-    void SetIrrigatorWithTimerHandler();
 
 public:
     void Initialize();

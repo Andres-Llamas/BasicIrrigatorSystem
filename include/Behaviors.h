@@ -11,6 +11,7 @@ public:
     bool activateIrrigatorWithTimer = true;
     bool irrigationValveIsActive = false;
     bool startOnlyWhenIsNotRaining = false;
+    char *valveState = "";
 
     void Initialization();
 

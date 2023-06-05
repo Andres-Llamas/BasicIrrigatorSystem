@@ -109,14 +109,16 @@ void Behaviors::CheckTimeForValveActivation()
 
 void Behaviors::CheckIrrigationValveState()
 {
-    // TODO check a bug that even though the valve is open, the text that appears is the one that says is closed
+    Behaviors::valveState = "";
     if (Behaviors::irrigationValveIsActive)
     {
-        Serial.println("The solenoid valve is currently open and working!");
+        Behaviors::valveState = "The solenoid valve is currently open and working!";
+        Serial.println(Behaviors::valveState);
     }
     else
     {
-        Serial.println("The solenoid valve is currently closed and sleeping!");
+        Behaviors::valveState = "The solenoid valve is currently closed and sleeping!";
+        Serial.println(Behaviors::valveState);
     }
 }
 
