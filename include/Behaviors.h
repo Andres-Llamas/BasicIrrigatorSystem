@@ -10,6 +10,8 @@ public:
     int valveRelayPin;
     bool activateIrrigatorWithTimer = true;
     bool irrigationValveIsActive = false;
+    bool startOnlyWhenIsNotRaining = false;
+
     void Initialization();
 
     /// @brief to initiate or stop irrigation manually
@@ -21,6 +23,7 @@ public:
     /// @param timeToActivate 
     void AddIrrigatorTimer(clockTime timeToActivate, clockTime timeToStop,  int indexToSet);
     void SetIrrigatorWithTimer(bool state);
+    void CheckIfCanActivateValve();
     void CheckTimeForValveActivation();
     void CheckIrrigationValveState();
 

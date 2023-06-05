@@ -3,6 +3,7 @@
 #include "Behaviors.h"
 #include <list>
 #include "TimeManager.h"
+#include "Sensors.h"
 
 clockTime timersToActivate[5];
 clockTime timersToDeactivate[5];
@@ -47,11 +48,30 @@ void Behaviors::SetIrrigatorWithTimer(bool state)
         Serial.println("Irrigator activation mode has changed to : manual");
 }
 
+void Behaviors::CheckIfCanActivateValve()
+{
+    if (Behaviors::startOnlyWhenIsNotRaining)
+    {
+        if (Sensors::isRaining) // if it is not raining
+        {
+            //Serial.println(" Is not raining ");
+            Behaviors::CheckTimeForValveActivation();
+        }
+        else
+        {
+            //Serial.println(" Is raining ");
+        }
+    }
+    else
+    {
+        Behaviors::CheckTimeForValveActivation();
+    }
+}
+
 void Behaviors::CheckTimeForValveActivation()
 {
     if (Behaviors::activateIrrigatorWithTimer)
     {
-
         for (int i = 0; i < 5; i++)
         {
             clockTime startTime = timersToActivate[i];
@@ -71,7 +91,7 @@ void Behaviors::CheckTimeForValveActivation()
                     }
                 }
                 else // if the valve is open
-                {                    
+                {
                     // Check at what time to close it according to the established by the user
                     if (stopTime.hours == TimeManager::currentTime.hours && stopTime.minutes == TimeManager::currentTime.minutes)
                     {
@@ -89,8 +109,8 @@ void Behaviors::CheckTimeForValveActivation()
 
 void Behaviors::CheckIrrigationValveState()
 {
-    //TODO check a bug that even though the valve is open, the text that appears is the one that says is closed
-    if(Behaviors::irrigationValveIsActive)
+    // TODO check a bug that even though the valve is open, the text that appears is the one that says is closed
+    if (Behaviors::irrigationValveIsActive)
     {
         Serial.println("The solenoid valve is currently open and working!");
     }
