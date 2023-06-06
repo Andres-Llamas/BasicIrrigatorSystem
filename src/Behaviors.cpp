@@ -32,11 +32,11 @@ void Behaviors::AddIrrigatorTimer(clockTime timeToActivate, clockTime timeToStop
     timersToDeactivate[indexToSet] = timeToStop;
     Serial.print("The following data has been stored in the clock system index ");
     Serial.println(indexToSet);
-    Serial.print("Start time.- ");
-    TimeManager::ShowDateAndTime(timeToActivate);
-    Serial.print("Stop time.-  ");
-    TimeManager::ShowDateAndTime(timeToStop);
-    TimeManager::ShowDateAndTime();
+    // Serial.print("Start time.- ");
+    // TimeManager::ShowDateAndTime(timeToActivate);
+    // Serial.print("Stop time.-  ");
+    // TimeManager::ShowDateAndTime(timeToStop);
+    // TimeManager::ShowDateAndTime();
 }
 
 void Behaviors::SetIrrigatorWithTimer(bool state)
@@ -127,8 +127,8 @@ clockTime Behaviors::GetClockTimeFromList(int index)
     clockTime val = timersToActivate[index];
     Serial.print("Getting timer from index ");
     Serial.println(index);
-    TimeManager::ShowDateAndTime(val);
-    TimeManager::ShowDateAndTime();
+    // TimeManager::ShowDateAndTime(val);
+    // TimeManager::ShowDateAndTime();
     return val;
 }
 

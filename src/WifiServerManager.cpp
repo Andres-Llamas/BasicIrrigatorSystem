@@ -3,6 +3,7 @@
 #include <ESPmDNS.h>
 #include "WifiServerManager.h"
 #include "Sensors.h"
+#include "CustomStructs.h"
 
 char *_wifiName;
 char *_wifiPassword;
@@ -10,10 +11,13 @@ WebServer _server(80);
 Behaviors _behaviorsObject;
 
 void handle_root();
+void SetIrrigationActiveHandler();
+void SetIrrigationInactiveHandler();
 void SetNumberOfTimersHandler();
 void GetClockTimeFromListHandler();
 void SetIrrigatorWithTimerHandler();
 void CheckIrrigationValveStateHandler();
+void CheckSensorsHandler();
 
 void WifiServerManager::Initialize()
 {
@@ -59,20 +63,41 @@ void WifiServerManager::StablishMDNSDirectionsAndBeginServer()
                        { _server.send(404, "text/plain", "Link was not found!"); });
 
     _server.on("/", handle_root);
-
-    _server.on("/start", []()
-               {_server.send(200, "text/plain", "Irrigation has started"); 
-               _behaviorsObject.SetIrrigationActive(true); });
-    _server.on("/stop", []()
-               {_server.send(200, "text/plain", "Irrigation has stopped"); 
-               _behaviorsObject.SetIrrigationActive(false); });
-
+    _server.on("/start", SetIrrigationActiveHandler);
+    _server.on("/stop", SetIrrigationInactiveHandler);
     _server.on("/check", CheckIrrigationValveStateHandler);
     _server.on("/timers", SetNumberOfTimersHandler);
     _server.on("/get", GetClockTimeFromListHandler);
     _server.on("/mode", SetIrrigatorWithTimerHandler);
+    _server.on("/sensors", CheckSensorsHandler);
 
     _server.begin();
+}
+void SetIrrigationActiveHandler()
+{
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <body>";
+    HTML += "       <h1><center>Irrigation started</center></h1>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/\"><center>Return</center></a>";
+    HTML += "   </body>";
+    HTML += "</html>";    
+    _behaviorsObject.SetIrrigationActive(true);
+    _server.send(200, "text/html", HTML);
+}
+void SetIrrigationInactiveHandler()
+{
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <body>";
+    HTML += "       <h1><center>Irrigation stoped</center></h1>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/\"><center>Return</center></a>";
+    HTML += "   </body>";
+    HTML += "</html>";    
+    _behaviorsObject.SetIrrigationActive(false);
+    _server.send(200, "text/html", HTML);
 }
 
 void SetNumberOfTimersHandler()
@@ -110,7 +135,7 @@ void SetNumberOfTimersHandler()
             stopHour = _server.arg(i);
         else if (_server.argName(i).equals("stopMinute"))
             stopMinute = _server.arg(i);
-        else if (_server.argName(i).equals("index"))
+        else if (_server.argName(i).equals("indexToSet"))
             indexToSet = _server.arg(i);
         else
         {
@@ -119,7 +144,6 @@ void SetNumberOfTimersHandler()
             message += " parameter index. The parameter is incorrect";
         }
     }
-    _server.send(200, "text/plain", message); // Response to the HTTP request
     startTime.hours = startHour.toInt();
     startTime.minutes = startMinute.toInt();
     startTime.seconds = 0; // his is because I will use only hours and minutes to control the system
@@ -127,6 +151,7 @@ void SetNumberOfTimersHandler()
     stopTime.minutes = stopMinute.toInt();
     stopTime.seconds = 0;
     _behaviorsObject.AddIrrigatorTimer(startTime, stopTime, indexToSet.toInt());
+    _server.send(200, "text/plain", message); // Response to the HTTP request
 }
 
 void GetClockTimeFromListHandler()
@@ -137,7 +162,25 @@ void GetClockTimeFromListHandler()
     else
         index = _server.arg("index");
     int val = index.toInt();
-    _behaviorsObject.GetClockTimeFromList(val);
+    clockTime time = _behaviorsObject.GetClockTimeFromList(val);
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <body>";
+    HTML += "       <h1><center>Valve activation time from timer number " + index + "</center></h1>";
+    HTML += "       <h2><center>Hour: ";
+    HTML += time.hours;
+    HTML += "</center></h2>";
+    HTML += "       <h2><center>Minutes: ";
+    HTML += time.minutes;
+    HTML += "</center></h2>";
+    HTML += "       <h2><center>Seconds: ";
+    HTML += time.seconds;
+    HTML += "</center></h2>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/\"><center>Return</center></a>";
+    HTML += "   </body>";
+    HTML += "</html>";
+    _server.send(200, "text/html", HTML);
 }
 
 void SetIrrigatorWithTimerHandler()
@@ -152,6 +195,15 @@ void SetIrrigatorWithTimerHandler()
         _behaviorsObject.SetIrrigatorWithTimer(false);
     else
         _behaviorsObject.SetIrrigatorWithTimer(true);
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <body>";
+    HTML += "       <h1><center> changed irrigation to " + state + "</center></h1>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/\"><center>Return</center></a>";
+    HTML += "   </body>";
+    HTML += "</html>";
+    _server.send(200, "text/html", HTML);
 }
 
 void CheckIrrigationValveStateHandler()
@@ -162,15 +214,34 @@ void CheckIrrigationValveStateHandler()
     HTML += "<!DOCTYPE html>";
     HTML += "<html>";
     HTML += "   <body>";
-    HTML += "       <h1><center>" + message + "</center></h1>";    
+    HTML += "       <h1><center>" + message + "</center></h1>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/\"><center>Return</center></a>";
     HTML += "   </body>";
     HTML += "</html>";
     _server.send(200, "text/html", HTML);
 }
 
-void WifiServerManager::UpdateServerCLient()
+void CheckSensorsHandler()
 {
-    _server.handleClient();
+    
+    String HTML = "";
+    HTML += "<!DOCTYPE html>";
+    HTML += "<html>";
+    HTML += "   <body>";
+    HTML += "       <h1><center>Sensors values</center></h1>";
+    HTML += "       <p><center> Light amount = ";HTML += Sensors::lightValue; HTML += "</center></p>";
+    HTML += "       <p><center> Temperature = ";HTML += Sensors::temperature; HTML += "c*</center></p>";
+    HTML += "       <p><center> Humidity = ";HTML += Sensors::humidity; HTML += "</center></p>";
+    HTML += "       <p><center> Is raining? = ";HTML += Sensors::isRaining? "false" : "true"; HTML += "</center></p>";
+    HTML += "       <p><center> Raining value = ";HTML += Sensors::rainValue; HTML += "</center></p>";
+    HTML += "       <p><center> Soil moisture number 1 = ";HTML += Sensors::smallMoistureAnalogValue; HTML += "</center></p>";
+    HTML += "       <p><center> Is soil number 1 wet? = ";HTML += Sensors::smallMoistureDigitalValue? "nop" : "yes is wet"; HTML += "</center></p>";
+    HTML += "       <p><center> Soil moisture number 2 = ";HTML += Sensors::largeMoistureAnalogValue; HTML += "</center></p>";
+    HTML += "       <p><center> Is soil number 2 wet? = ";HTML += Sensors::largeMoistureAnalogValue? "nop" : "yes is wet"; HTML += "</center></p>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/\"><center>Return</center></a>";
+    HTML += "   </body>";
+    HTML += "</html>";
+    _server.send(200, "text/html", HTML);
 }
 
 // Handle root url (/)
@@ -185,17 +256,15 @@ void handle_root()
     HTML += "   </head>";
     HTML += "   <body>";
     HTML += "       <h1><center> Irrigator system </center></h1>";
-    HTML += "       <a href=\"http://192.168.100.52/start\"><center>Start Irrigation</center></a>";
-    HTML += "       <a href=\"http://192.168.100.52/stop\"><center>Stop Irrigation</center></a>";
-    HTML += "       <a href=\"http://192.168.100.52/check\"><center>Check if valve is active</center></a>";
-    HTML += "   <form action=\"/get\">";
-    HTML += "       input1: <input type=\"text\" name=\"input1\">";
-    HTML += "       <input type=\"submit\" value=\"Submit\">";
-    HTML += "   </form><br>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/start\"><center>Start Irrigation</center></a>";
+    HTML += "       <a href=\"http://"; HTML += WiFi.localIP().toString(); HTML += "/stop\"><center>Stop Irrigation</center></a>";
+    HTML += "       <a href=\"http://";HTML += WiFi.localIP().toString(); HTML +="/check\"><center>Check if valve is active</center></a>";
+    HTML += "       <a href=\"http://";HTML += WiFi.localIP().toString(); HTML +="/sensors\"><center>Check Sensors values</center></a>";
+    HTML += "       <p><center> To set the irrigator mode to manual or automatic (with timers) is with: http://"; HTML += WiFi.localIP().toString(); HTML += "/mode?mode=automatic/manual</center></p>";
+    HTML += "       <p><center> To set a timer is with: http://"; HTML += WiFi.localIP().toString(); HTML += "/timers?startHour=1&startMinute=2&stopHour=3&stopMinute=4&indexToSet=5</center></p>";
+    HTML += "       <p><center> To check a timer is with: http://"; HTML += WiFi.localIP().toString(); HTML += "/get?index=0</center></p>";
     HTML += "   </body>";
     HTML += "</html>";
-
-    
 
     Serial.println("entered the login page");
     _server.send(200, "text/html", HTML);
@@ -206,4 +275,9 @@ WifiServerManager::WifiServerManager(char *wifiName, char *wifiPassword, Behavio
     _wifiName = wifiName;
     _wifiPassword = wifiPassword;
     _behaviorsObject = behaviorsObject;
+}
+
+void WifiServerManager::UpdateServerCLient()
+{
+    _server.handleClient();
 }
